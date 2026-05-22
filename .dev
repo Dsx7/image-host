@@ -1,6 +1,0 @@
-CLERK_SECRET_KEY="sk_test_G5OmSXwk4O79Zd2nA8l9w2jtDYrvDJyoCXbqNgmmJK"
-CLERK_PUBLISHABLE_KEY="pk_test_ZW5hYmxlZC12aXBlci03Mi5jbGVyay5hY2NvdW50cy5kZXYk"
-CLOUDINARY_CLOUD_NAME="dxd9f0oai"
-R2_PUBLIC_URL="https://pub-32d660121ddf4fe8b3230d7aea7c2dc9.r2.dev"
-RESEND_API_KEY="re_..."
-ADMIN_EMAIL="admin@example.com"
