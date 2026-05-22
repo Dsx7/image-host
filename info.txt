@@ -1,0 +1,9 @@
+{
+  "d1_databases": [
+    {
+      "binding": "image_host_db",
+      "database_name": "image-host-db",
+      "database_id": "9e8659f8-521b-4786-a15c-e81d1ba8ab0c"
+    }
+  ]
+}

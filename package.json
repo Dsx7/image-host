@@ -1,0 +1,16 @@
+{
+  "name": "image-host",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy --minify",
+    "cf-typegen": "wrangler types --env-interface CloudflareBindings"
+  },
+  "dependencies": {
+    "@clerk/backend": "^3.4.13",
+    "hono": "^4.12.22"
+  },
+  "devDependencies": {
+    "wrangler": "^4.94.0"
+  }
+}
