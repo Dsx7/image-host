@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@clerk/nextjs";
-import { UploadCloud, CheckCircle2, Copy, Trash2, Key, Loader2 } from "lucide-react";
+import { UploadCloud, CheckCircle2, Copy, Trash2, Key, Loader2, ImageIcon, ExternalLink } from "lucide-react";
 
 export default function DashboardPage() {
   const { getToken } = useAuth();
@@ -20,6 +20,10 @@ export default function DashboardPage() {
   const [isKeyLoading, setIsKeyLoading] = useState(true);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8787";
+
+  // Images State
+  const [images, setImages] = useState<any[]>([]);
+  const [isImagesLoading, setIsImagesLoading] = useState(true);
 
   // Fetch API Key status on load
   useEffect(() => {
@@ -39,7 +43,24 @@ export default function DashboardPage() {
         setIsKeyLoading(false);
       }
     }
+    async function fetchImages() {
+      try {
+        const token = await getToken();
+        const res = await fetch(`${apiUrl}/api/protected/images`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setImages(data);
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setIsImagesLoading(false);
+      }
+    }
     checkKey();
+    fetchImages();
   }, [getToken, apiUrl]);
 
   // Upload Logic
@@ -70,6 +91,7 @@ export default function DashboardPage() {
       if (!res.ok) throw new Error(data.error || "Upload failed");
       
       setUploadResult(data.image);
+      setImages(prev => [data.image, ...prev]);
     } catch (err: any) {
       alert(err.message);
     } finally {
@@ -283,6 +305,45 @@ export default function DashboardPage() {
           <button onClick={generateApiKey} className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all font-semibold shadow-[0_0_15px_rgba(37,99,235,0.3)]">
             Generate API Key
           </button>
+        )}
+      </div>
+
+      {/* FULL WIDTH COLUMN: User Images */}
+      <div className="lg:col-span-3 mt-8 border-t border-gray-800 pt-8">
+        <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+          <ImageIcon className="w-6 h-6 text-emerald-500" /> My Uploaded Images
+        </h2>
+        
+        {isImagesLoading ? (
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="aspect-square bg-gray-800 animate-pulse rounded-xl"></div>
+            ))}
+          </div>
+        ) : images.length === 0 ? (
+          <div className="text-center py-12 bg-gray-900 border border-gray-800 rounded-2xl">
+            <ImageIcon className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+            <p className="text-gray-400">You haven't uploaded any images yet.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {images.map(img => (
+              <div key={img.id} className="group relative aspect-square bg-gray-900 border border-gray-800 rounded-xl overflow-hidden hover:border-emerald-500 transition-all duration-300 shadow-lg hover:shadow-emerald-500/20">
+                <img src={img.cloudinary_url || img.url} alt={img.original_name} className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
+                  <p className="text-xs text-white truncate mb-2 font-medium">{img.original_name}</p>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => copyToClipboard(img.url)} className="flex-1 p-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-white flex justify-center transition-colors">
+                      <Copy className="w-4 h-4" />
+                    </button>
+                    <a href={img.url} target="_blank" className="flex-1 p-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white flex justify-center transition-colors">
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </div>

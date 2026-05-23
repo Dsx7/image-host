@@ -10,6 +10,7 @@ export default function AdminPage() {
   
   const [stats, setStats] = useState<any>(null);
   const [users, setUsers] = useState<any[]>([]);
+  const [images, setImages] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,9 +20,10 @@ export default function AdminPage() {
     try {
       const token = await getToken();
       
-      const [statsRes, usersRes] = await Promise.all([
+      const [statsRes, usersRes, imagesRes] = await Promise.all([
         fetch(`${apiUrl}/api/admin/stats`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`${apiUrl}/api/admin/users`, { headers: { Authorization: `Bearer ${token}` } })
+        fetch(`${apiUrl}/api/admin/users`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${apiUrl}/api/admin/images`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
 
       if (!statsRes.ok || !usersRes.ok) {
@@ -31,6 +33,7 @@ export default function AdminPage() {
 
       setStats(await statsRes.json());
       setUsers(await usersRes.json());
+      setImages(await imagesRes.json());
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -63,6 +66,20 @@ export default function AdminPage() {
       fetchAdminData(); // Refresh list
     } catch (err: any) {
       alert(err.message);
+    }
+  };
+
+  const handleDeleteImage = async (id: string) => {
+    if (!confirm("Delete this image permanently?")) return;
+    try {
+      const token = await getToken();
+      await fetch(`${apiUrl}/api/admin/images/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchAdminData();
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -154,6 +171,26 @@ export default function AdminPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+
+        {/* Global Image Gallery */}
+        <div className="bg-gray-900 border border-gray-800 rounded-xl shadow-lg overflow-hidden p-6 mt-8">
+          <h2 className="text-lg font-semibold mb-4">Global Image Feed</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {images.map(img => (
+              <div key={img.id} className={`group relative aspect-square bg-black border ${img.is_reported ? 'border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.3)]' : 'border-gray-800'} rounded-xl overflow-hidden hover:border-emerald-500 transition-colors`}>
+                <img src={img.cloudinary_url || img.url} alt={img.original_name} className="w-full h-full object-cover" />
+                {img.is_reported ? <div className="absolute top-2 right-2 bg-red-500 text-white text-[10px] px-2 py-1 rounded-full font-bold animate-pulse">REPORTED</div> : null}
+                <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
+                  <p className="text-xs text-white truncate mb-1 font-medium">{img.original_name}</p>
+                  <p className="text-[10px] text-gray-400 truncate mb-3">User: {img.user_id.slice(0, 15)}...</p>
+                  <button onClick={() => handleDeleteImage(img.id)} className="w-full p-2 bg-red-600 hover:bg-red-500 rounded-lg text-white text-xs flex justify-center items-center gap-1 transition-colors">
+                    <Trash2 className="w-3 h-3" /> Delete
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </main>
