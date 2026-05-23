@@ -135,6 +135,25 @@ function generateShortId(length = 8) {
   return result;
 }
 
+// --- ENDPOINT: Get User Images ---
+app.get('/api/protected/images', async (c) => {
+  const userId = c.get('userId');
+  if (!userId) return c.json({ error: 'Unauthorized' }, 401);
+
+  const { results } = await c.env.image_host_db.prepare(`
+    SELECT id, original_name, r2_key, size_bytes, mime_type, created_at, expires_at 
+    FROM images 
+    WHERE user_id = ? 
+    ORDER BY created_at DESC
+  `).bind(userId).all();
+
+  return c.json(results.map(img => ({
+    ...img,
+    url: `${c.req.header('Origin') || 'https://image-host-axg.pages.dev'}/i/${img.id}.${img.original_name.split('.').pop() || 'png'}`,
+    cloudinary_url: `https://res.cloudinary.com/${c.env.CLOUDINARY_CLOUD_NAME}/image/fetch/f_auto,q_auto/${c.env.R2_PUBLIC_URL}/${img.r2_key}`
+  })));
+});
+
 // --- ENDPOINT: Upload Image ---
 app.post('/api/protected/upload', async (c) => {
   const userId = c.get('userId');
@@ -387,6 +406,30 @@ app.post('/api/admin/ban', async (c) => {
   }
 
   return c.json({ message: `User banned and ${userImages?.length || 0} files deleted.` });
+});
+
+app.get('/api/admin/images', async (c) => {
+  const { results } = await c.env.image_host_db.prepare(`
+    SELECT id, user_id, original_name, r2_key, size_bytes, mime_type, created_at, is_reported 
+    FROM images 
+    ORDER BY created_at DESC
+  `).all();
+
+  return c.json(results.map(img => ({
+    ...img,
+    url: `${c.req.header('Origin') || 'https://image-host-axg.pages.dev'}/i/${img.id}.${img.original_name.split('.').pop() || 'png'}`,
+    cloudinary_url: `https://res.cloudinary.com/${c.env.CLOUDINARY_CLOUD_NAME}/image/fetch/f_auto,q_auto/${c.env.R2_PUBLIC_URL}/${img.r2_key}`
+  })));
+});
+
+app.delete('/api/admin/images/:id', async (c) => {
+  const id = c.req.param('id');
+  const img = await c.env.image_host_db.prepare('SELECT r2_key FROM images WHERE id = ?').bind(id).first<{ r2_key: string }>();
+  if (img) {
+    await c.env.BUCKET.delete(img.r2_key);
+    await c.env.image_host_db.prepare('DELETE FROM images WHERE id = ?').bind(id).run();
+  }
+  return c.json({ message: 'Image deleted' });
 });
 
 // Basic health check route
