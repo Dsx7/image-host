@@ -1,21 +1,20 @@
-```txt
-npm install
-npm run dev
-```
+# Image Host Edge ⚡️
 
-```txt
-npm run deploy
-```
+A lightning-fast, highly scalable, and completely serverless Image Hosting platform built on Cloudflare Workers, Next.js, and Vercel.
 
-[For generating/synchronizing types based on your Worker configuration run](https://developers.cloudflare.com/workers/wrangler/commands/#types):
+## Architecture
+- **Frontend**: Next.js 16 (App Router) hosted on Vercel
+- **Backend API**: Cloudflare Workers (Hono)
+- **Database**: Cloudflare D1 (Serverless SQLite)
+- **Storage**: Cloudflare R2 (S3-compatible Object Storage)
+- **Authentication**: Clerk
 
-```txt
-npm run cf-typegen
-```
+## Features
+- Drag & Drop Image Uploads
+- Instant Cloudinary optimizations & transformations
+- Ephemeral "Burn-after-reading" images (cron-based auto deletion)
+- Developer API Keys & Programmatic Uploads
+- Admin Dashboard for Moderation
 
-Pass the `CloudflareBindings` as generics when instantiating `Hono`:
-
-```ts
-// src/index.ts
-const app = new Hono<{ Bindings: CloudflareBindings }>()
-```
+## Documentation
+Check out the [Developer API Documentation](./API_DOCS.md) to learn how to integrate the image host into your own CLI tools or external applications using your API Keys!
