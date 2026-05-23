@@ -3,7 +3,7 @@
 A lightning-fast, highly scalable, and completely serverless Image Hosting platform built on Cloudflare Workers, Next.js, and Vercel.
 
 ## Architecture
-- **Frontend**: Next.js 16 (App Router) hosted on Vercel
+- **Frontend**: Next.js 16 (App Router) hosted on Cloudflare.
 - **Backend API**: Cloudflare Workers (Hono)
 - **Database**: Cloudflare D1 (Serverless SQLite)
 - **Storage**: Cloudflare R2 (S3-compatible Object Storage)
