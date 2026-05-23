@@ -40,15 +40,20 @@ app.use('/api/protected/*', async (c, next) => {
   const token = authHeader.split(' ')[1];
 
   try {
+    const origin = c.req.header('Origin');
+    const secret = c.env.CLERK_SECRET_KEY?.replace(/['"]/g, '').trim();
+    
     const verified = await verifyToken(token, {
-      secretKey: c.env.CLERK_SECRET_KEY,
+      secretKey: secret,
+      authorizedParties: origin ? [origin, 'http://localhost:3000'] : undefined,
     });
     
     // Attach the authenticated user's Clerk ID to the context
     c.set('userId', verified.sub);
     await next();
-  } catch (error) {
-    return c.json({ error: 'Unauthorized: Invalid token' }, 401);
+  } catch (error: any) {
+    console.error("Clerk VerifyToken Error:", error);
+    return c.json({ error: 'Unauthorized: Invalid token', details: error.message }, 401);
   }
 });
 
@@ -204,6 +209,61 @@ app.post('/api/protected/upload', async (c) => {
       url: cloudinaryUrl,
       direct_r2_url: `${c.env.R2_PUBLIC_URL}/${r2Key}`,
       expires_at: expiresAt
+    }
+  });
+});
+
+// --- ENDPOINT: Developer API Upload (Public) ---
+app.post('/api/v1/upload', async (c) => {
+  const authHeader = c.req.header('Authorization');
+  if (!authHeader?.startsWith('Bearer ih_')) {
+    return c.json({ error: 'Missing or invalid Developer API Key. Expected Bearer ih_...' }, 401);
+  }
+
+  const rawKey = authHeader.split(' ')[1];
+
+  const encoder = new TextEncoder();
+  const data = encoder.encode(rawKey);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashedKey = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+
+  const user = await c.env.image_host_db.prepare(`SELECT clerk_user_id FROM users WHERE api_key_hash = ?`).bind(hashedKey).first<{ clerk_user_id: string }>();
+  if (!user) return c.json({ error: 'Invalid API Key' }, 401);
+  
+  const userId = user.clerk_user_id;
+
+  const body = await c.req.parseBody();
+  const file = body['file'];
+  
+  if (!file || typeof file === 'string') return c.json({ error: 'No image file provided' }, 400);
+
+  const MAX_SIZE = 2 * 1024 * 1024;
+  if (file.size > MAX_SIZE) return c.json({ error: 'File size exceeds 2MB limit' }, 400);
+  if (!file.type.startsWith('image/')) return c.json({ error: 'Only image files are allowed' }, 400);
+
+  const shortId = generateShortId();
+  const fileExtension = file.name.split('.').pop() || 'png';
+  const r2Key = `${userId}/${shortId}.${fileExtension}`;
+
+  const arrayBuffer = await file.arrayBuffer();
+  await c.env.BUCKET.put(r2Key, arrayBuffer, {
+    httpMetadata: { contentType: file.type }
+  });
+
+  await c.env.image_host_db.prepare(`
+    INSERT INTO images (id, user_id, r2_key, original_name, size_bytes, mime_type)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).bind(shortId, userId, r2Key, file.name, file.size, file.type).run();
+
+  const customUrl = `${c.req.header('Origin') || 'https://image-host-axg.pages.dev'}/i/${shortId}.${fileExtension}`;
+  
+  return c.json({
+    message: 'Image uploaded successfully via API',
+    image: {
+      id: shortId,
+      url: customUrl,
+      direct_r2_url: `${c.env.R2_PUBLIC_URL}/${r2Key}`
     }
   });
 });
